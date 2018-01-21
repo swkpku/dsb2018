@@ -99,7 +99,7 @@ class Trainer():
         
         # learning rate schedule
         self._adjust_learning_rate(epoch, self.config['lr_schedule'])
-        for i, (img, target, _) in enumerate(self.train_dataloader):
+        for i, (_, img, target) in enumerate(self.train_dataloader):
             # start from the specified iteration
             i = i + start_iter
             #if i < start_iter:

@@ -13,8 +13,8 @@ import torch
 import torch.autograd as autograd
 import torch.utils.data as data
 
-import model_factory
-from dataset import Dataset
+from dataset import DSB2018Dataset
+from models import UNet
 
 from trainer.trainer import get_trainer
 from configs.lr_schedules import get_lr_schedule
@@ -25,13 +25,13 @@ parser.add_argument('--output_dir', metavar='DIR', default='output/',
                     help='path to output files')
 parser.add_argument('--model', '-m', metavar='MODEL', default='dpn92',
                     help='model architecture (default: dpn92)')
-parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
-                    help='number of data loading workers (default: 1)')
+parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
+                    help='number of data loading workers (default: 0)')
 parser.add_argument('-lrs', '--lr-schedule', default=1, type=int,
                     metavar='N', help='learning rate schedule (default: 1)')
 parser.add_argument('-b', '--batch-size', default=32, type=int,
                     metavar='N', help='mini-batch size (default: 32)')
-parser.add_argument('--img-size', default=75, type=int,
+parser.add_argument('--img-size', default=256, type=int,
                     metavar='N', help='Input image dimension')
 parser.add_argument('-e', '--num-epochs', default=5, type=int,
                     metavar='N', help='Number of epochs')
@@ -47,7 +47,7 @@ parser.add_argument('--no-test-pool', dest='test_time_pool', action='store_false
                     help='use pre-trained model')
 
                     
-data_path = "/home/iceberg/"
+data_path = "/home/dsb2018/"
 # Ignore warnings
 import warnings
 warnings.filterwarnings("ignore")
@@ -55,19 +55,13 @@ warnings.filterwarnings("ignore")
 def main():
     args = parser.parse_args()
     
-    transforms = model_factory.get_transforms_iceberg(
-        args.model,
-        args.img_size)
-    
-    train_dataset = Dataset(
-        data_json=data_path+"train_1.json",
-        with_label=True,
-        transform=None)
+    train_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_train_256_0.txt', 
+                            TRAIN_DATA_ROOT+'X_train_256_0.npy',
+                            TRAIN_DATA_ROOT+'Y_train_256_0.npy')
         
-    val_dataset = Dataset(
-        data_json=data_path+"val_1.json",
-        with_label=True,
-        transform=None)
+    val_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_val_256_0.txt', 
+                            TRAIN_DATA_ROOT+'X_val_256_0.npy',
+                            TRAIN_DATA_ROOT+'Y_val_256_0.npy')
 
     train_dataloader = data.DataLoader(
         train_dataset,
@@ -98,10 +92,8 @@ def main():
 
     # create model
     num_classes = 2
-    if args.model.endswith('sigmoid'):
-        num_classes = 1
     
-    model = model_factory.create_model(args.model, num_classes=num_classes, pretrained=False, test_time_pool=args.test_time_pool)
+    model = UNet(3, depth=5, merge_mode='concat')
 
     # resume from a checkpoint
     if args.restore_checkpoint and os.path.isfile(args.restore_checkpoint):
@@ -148,10 +140,7 @@ def main():
         model = model.cuda()
 
     # define loss function (criterion) and optimizer
-    criterion = torch.nn.CrossEntropyLoss().cuda()
-    
-    if args.model.endswith('sigmoid'):
-        criterion =  torch.nn.BCELoss().cuda()
+    criterion =  torch.nn.BCELoss().cuda()
 
     # get trainer
     Trainer = get_trainer(train_dataloader, val_dataloader, model, criterion, config)
