@@ -6,11 +6,11 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.model_selection import KFold
 
-TRAIN_ROOT = '/home/dsb2018/stage1_train/'
-TEST_ROOT = '/home/dsb2018/stage1_test/'
+TRAIN_ROOT = '/home/swk/dsb2018/stage1_train/'
+TEST_ROOT = '/home/swk/dsb2018/stage1_test/'
 
-TRAIN_DATA_ROOT = '/home/dsb2018/stage1_train_data/'
-TEST_DATA_ROOT = '/home/dsb2018/stage1_test_data/'
+TRAIN_DATA_ROOT = '/home/swk/dsb2018/stage1_train_data/'
+TEST_DATA_ROOT = '/home/swk/dsb2018/stage1_test_data/'
 
 IMG_HEIGHT = 256
 IMG_WIDTH = 256
@@ -81,3 +81,9 @@ np.save(TEST_DATA_ROOT+'X_test_256', X_test)
 test_ids_file = open(TEST_DATA_ROOT+'test_ids_256.txt', 'w')
 for id in test_ids:
     test_ids_file.write('%s\n' % id)
+    
+sizes_test_file = open(TEST_DATA_ROOT+'sizes_test.txt', 'w')
+for sizes in sizes_test:
+    for size in sizes:
+        sizes_test_file.write('%d ' % size)
+    sizes_test_file.write('\n')

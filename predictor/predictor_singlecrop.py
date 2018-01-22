@@ -2,7 +2,22 @@ import time
 import torch
 import csv
 import numpy as np
-#import visdom
+from PIL import Image
+
+def rle_encoding(x):
+    dots = np.where(x.T.flatten() == 1)[0]
+    run_lengths = []
+    prev = -2
+    for b in dots:
+        if (b>prev+1): run_lengths.extend((b + 1, 0))
+        run_lengths[-1] += 1
+        prev = b
+    return run_lengths
+
+def prob_to_rles(x, cutoff=0.5):
+    lab_img = label(x > cutoff)
+    for i in range(1, lab_img.max() + 1):
+        yield rle_encoding(lab_img == i)
         
 class Predictor():
     def __init__(self, test_dataloader, model, config):
@@ -26,7 +41,7 @@ class Predictor():
         # prediction
         print("start prediction")
         end = time.time()
-        for i, (imgs, _, prod_ids) in enumerate(self.test_dataloader):
+        for i, (id, imgs) in enumerate(self.test_dataloader):
             # measure data loading time
             data_time = time.time() - end
             
@@ -35,16 +50,27 @@ class Predictor():
             # compute output
             output = self.model(input_var)
             
-            if self.config['arch'].endswith('sigmoid'):
-                output = self.model(input_var)
-                for prod_id, prob in zip(prod_ids, output):
-                    outfile.write("%s,%f\n" % (prod_id, prob.data[0]))
-            else:
-                output = self.model(input_var)
-                output = torch.nn.functional.softmax(output).data[:,1]
-            # probs, predicts = torch.max(output.data, 1)
-                for prod_id, prob in zip(prod_ids, output):
-                    outfile.write("%s,%f\n" % (prod_id, prob))
+            predicts = output.data.cpu().numpy()
+            predicts_t = (predicts > 0.5).astype(np.uint8)
+            
+            # Create list of upsampled test masks
+            preds_test_upsampled = []
+            for i in range(len(predicts)):
+                preds_test_upsampled.append(resize(np.squeeze(predicts[i]), 
+                                       (sizes_test[i][0], sizes_test[i][1]), 
+                                       mode='constant', preserve_range=True))
+            
+            #img = np.transpose(imgs.numpy()[0], (1,2,0)).astype(np.uint8)
+            #print(img.shape)
+            #print(output.data.cpu().numpy().astype(np.uint8)[0][0].shape)
+            
+            #img = Image.fromarray(img, mode='RGB')
+            #img.show()
+            
+            #mask = Image.fromarray(output.data.cpu().numpy().astype(np.uint8)[0][0], mode='L')
+            #mask.show()
+            
+            #exit()
             
             # measure elapsed time
             batch_time = time.time() - end

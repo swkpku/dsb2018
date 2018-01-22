@@ -13,27 +13,35 @@ import torch
 import torch.autograd as autograd
 import torch.utils.data as data
 
-from dataset import DSB2018Dataset
-from models import UNet
-
+from dataset.dataset import DSB2018Dataset
+from dataset.transforms import *
+from models.unet import UNet
+from models.losses import binary_cross_entropy2d
+from models.metrics import runningScore
 from trainer.trainer import get_trainer
 from configs.lr_schedules import get_lr_schedule
 
-                    
-data_path = "/home/dsb2018/"
 # Ignore warnings
 import warnings
 warnings.filterwarnings("ignore")
+
+TRAIN_DATA_ROOT = "/home/swk/dsb2018/stage1_train_data/"
 
 def main(args):
     # preparing dataset and dataloader
     train_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_train_256_0.txt', 
                             TRAIN_DATA_ROOT+'X_train_256_0.npy',
-                            TRAIN_DATA_ROOT+'Y_train_256_0.npy')
+                            TRAIN_DATA_ROOT+'Y_train_256_0.npy',
+                            transform=Compose([
+                                RandomRotate(10),                                        
+                                RandomHorizontallyFlip()]))
         
     val_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_val_256_0.txt', 
                             TRAIN_DATA_ROOT+'X_val_256_0.npy',
-                            TRAIN_DATA_ROOT+'Y_val_256_0.npy')
+                            TRAIN_DATA_ROOT+'Y_val_256_0.npy',
+                            transform=Compose([
+                                RandomRotate(10),                                        
+                                RandomHorizontallyFlip()]))
 
     train_dataloader = data.DataLoader(
         train_dataset,
@@ -53,7 +61,7 @@ def main(args):
     config = {
         'train_batch_size': args.batch_size, 'val_batch_size': 10,
         'img_size': args.img_size,
-        'arch': args.model, 'pretrained': args.pretrained, 'ckpt_title': "_lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size),
+        'arch': args.model, 'pretrained': args.pretrained, 'ckpt_title': "lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size),
         'lr_schedule_idx': args.lr_schedule, 'lr_schedule': get_lr_schedule(args.lr_schedule), 'weight_decay': 1e-5,
         'start_epoch': 0, 'epochs': args.num_epochs,
         'print_freq': args.print_freq, 'validate_freq': num_train-1, 'save_freq': num_train-1,
@@ -62,18 +70,18 @@ def main(args):
     }
 
     # create model
-    num_classes = 2
-    model = UNet(3, depth=5, merge_mode='concat')
+    num_classes=1
+    model = UNet(num_classes, in_channels=3, depth=5, merge_mode='concat')
     
     # create optimizer
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), 
-                                          lr = self.config['lr_schedule'][0],
-                                          weight_decay=self.config['weight_decay'])
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
+                                          lr=config['lr_schedule'][0],
+                                          weight_decay=config['weight_decay'])
     if (args.optimizer == 'SGD'):
-        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), 
-                                          lr = self.config['lr_schedule'][0],
-                                          momentum = self.config['momentum'],
-                                          weight_decay=self.config['weight_decay'])
+        optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), 
+                                          lr=config['lr_schedule'][0],
+                                          momentum=config['momentum'],
+                                          weight_decay=config['weight_decay'])
 
     # resume from a checkpoint
     if args.restore_checkpoint and os.path.isfile(args.restore_checkpoint):
@@ -120,11 +128,12 @@ def main(args):
     else:
         model = model.cuda()
 
-    # define loss function (criterion)
-    criterion =  torch.nn.BCELoss().cuda()
+    # define loss function (criterion) & metrics
+    # criterion =  torch.nn.BCELoss().cuda()
+    metrics = runningScore(num_classes+1)
 
     # get trainer
-    Trainer = get_trainer(train_dataloader, val_dataloader, model, optimizer, criterion, config)
+    Trainer = get_trainer(train_dataloader, val_dataloader, model, optimizer, binary_cross_entropy2d, metrics, config)
 
     # run!
     Trainer.run()
@@ -136,8 +145,8 @@ if __name__ == '__main__':
     parser.add_argument('--model', '-m', metavar='MODEL', default='unet', help='model architecture (default: unet)')
     parser.add_argument('--optimizer', '-opt', metavar='OPTIMIZER', default='Adam',help='optimizer (default: Adam)')
     parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',help='number of data loading workers (default: 0)')
-    parser.add_argument('-lrs', '--lr-schedule', default=1, type=int, metavar='N', help='learning rate schedule (default: 1)')
-    parser.add_argument('-b', '--batch-size', default=32, type=int, metavar='N', help='mini-batch size (default: 32)')
+    parser.add_argument('-lrs', '--lr-schedule', default=5, type=int, metavar='N', help='learning rate schedule (default: 5)')
+    parser.add_argument('-b', '--batch-size', default=16, type=int, metavar='N', help='mini-batch size (default: 16)')
     parser.add_argument('--img-size', default=256, type=int, metavar='N', help='Input image dimension')
     parser.add_argument('-e', '--num-epochs', default=5, type=int, metavar='N', help='Number of epochs')
     parser.add_argument('--print-freq', '-p', default=10, type=int, metavar='N', help='print frequency (default: 10)')

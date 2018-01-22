@@ -23,12 +23,13 @@ class AverageMeter(object):
         
         
 class Trainer():
-    def __init__(self, train_dataloader, val_dataloader, model, optimizer, criterion, config):
+    def __init__(self, train_dataloader, val_dataloader, model, optimizer, criterion, metrics, config):
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
+        self.metrics = metrics
         self.config = config
 
         self.train_batch_time = AverageMeter()
@@ -50,7 +51,7 @@ class Trainer():
             self._adjust_learning_rate(epoch, self.config['lr_schedule'])
             
             # train for one epoch
-            self._train(epoch, start_iter)
+            self._train(epoch)
             
             # save checkpoint
             tmp = self.config['log_file']
@@ -71,7 +72,7 @@ class Trainer():
             self._validate(self.val_dataloader)
 
         
-    def _train(self, epoch, start_iter):
+    def _train(self, epoch):
         # switch to train mode
         self.model.train()
         
@@ -86,13 +87,10 @@ class Trainer():
 
             # compute output
             output = self.model(input_var)
-            loss = self.criterion(output, target_var)
+            loss = self.criterion(input=output, target=target_var)
         
             # measure accuracy and record loss
-            prec1, prec5 = self._accuracy(output.data, target, topk=(1, 1))
             self.train_losses.update(loss.data[0], img.size(0))
-            self.train_top1.update(prec1[0], img.size(0))
-            self.train_top5.update(prec5[0], img.size(0))
 
             # compute gradient and do one optimization step
             self.optimizer.zero_grad()
@@ -107,11 +105,9 @@ class Trainer():
                 print('Epoch: [{0}][{1}/{2}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                      'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
                        epoch, i, len(self.train_dataloader), batch_time=self.train_batch_time,
-                       data_time=self.train_data_time, loss=self.train_losses, top1=self.train_top1, top5=self.train_top5), file=self.config['log_file'], flush=True)
+                       data_time=self.train_data_time, loss=self.train_losses), file=self.config['log_file'], flush=True)
 
     def _validate(self, val_loader):
         batch_time = AverageMeter()
@@ -123,20 +119,20 @@ class Trainer():
         self.model.eval()
 
         end = time.time()
-        for i, (img, target, _) in enumerate(self.val_dataloader):
+        for i, (_, img, target) in enumerate(self.val_dataloader):
             target = target.cuda(async=True)
             input_var = torch.autograd.Variable(img, volatile=True)
             target_var = torch.autograd.Variable(target, volatile=True)
 
             # compute output
             output = self.model(input_var)                
-            loss = self.criterion(output, target_var)
+            loss = self.criterion(input=output, target=target_var)
 
-            # measure accuracy and record loss
-            prec1, prec5 = self._accuracy(output.data, target, topk=(1, 1))
             losses.update(loss.data[0], img.size(0))
-            top1.update(prec1[0], img.size(0))
-            top5.update(prec5[0], img.size(0))
+            
+            pred = output.data.max(1)[1].cpu().numpy()
+            gt = target_var.data.cpu().numpy()
+            self.metrics.update(gt, pred)
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -150,16 +146,22 @@ class Trainer():
                       'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                        i, len(val_loader), batch_time=batch_time, loss=losses,
                        top1=top1, top5=top5), file=self.config['log_file'], flush=True)
+                       
+        score, class_iou = self.metrics.get_scores()
+        for k, v in score.items():
+            print(k, v, file=self.config['log_file'], flush=True)
+        self.metrics.reset()
+        print('Test:\t'
+              'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+              'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
+               batch_time=batch_time, loss=losses), file=self.config['log_file'], flush=True)
 
-        print('* Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-              'Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'.format(loss=losses, top1=top1, top5=top5), file=self.config['log_file'], flush=True)
 
 
     def _save_checkpoint(self, state, is_best):
         epoch = state['epoch']
-        iteration = state['iter']
-        filename = 'checkpoints/' + self.config['arch'] + '_' + self.config['ckpt_title'] + '_epoch_' + str(epoch) + '_iter_' + str(iteration) + '.pth.tar'
-        torch.save(state, filename)
+        filename = 'checkpoints/' + self.config['arch'] + '_' + self.config['ckpt_title'] + '_epoch_' + str(epoch) + '.pth.tar'
+        #torch.save(state, filename)
         if is_best:
             shutil.copyfile(filename, self.config['arch'] + '_epoch_' + str(epoch) + '_iter_' + str(iteration) + '_model_best.pth.tar')
 
@@ -189,5 +191,5 @@ class Trainer():
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
     
-def get_trainer(train_dataloader, val_dataloader, model, criterion, config):
-    return Trainer(train_dataloader, val_dataloader, model, criterion, config)
+def get_trainer(train_dataloader, val_dataloader, model, optimizer, criterion, metrics, config):
+    return Trainer(train_dataloader, val_dataloader, model, optimizer, criterion, metrics, config)
