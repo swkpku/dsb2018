@@ -38,22 +38,23 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
 args = parser.parse_args()
 
 config = {
-    'test_batch_size': 100,
-    'checkpoint': 'checkpoints/unet_lr5_bs16_size256_epoch_4.pth.tar',
+    'test_batch_size': 20,
+    'checkpoint': 'checkpoints/unet_lr5_bs16_size256_epoch_89.pth.tar',
     'print_freq': 10,
-    'pred_filename': "predicts/unet_lr5_bs16_size256_epoch_4.csv",
+    'pred_filename': "predicts/unet_lr5_bs16_size256_epoch_89.csv",
 	'arch': args.model
 }
 
 TEST_DATA_ROOT = "/home/swk/dsb2018/stage1_test_data/"
 
-num_classes = 2
+num_classes = 1
 
 # get dataset
 print('getting dataset...')
 
 test_dataset = DSB2018TestDataset(TEST_DATA_ROOT+'test_ids_256.txt', 
-                            TEST_DATA_ROOT+'X_test_256.npy')
+                            TEST_DATA_ROOT+'X_test_256.npy',
+                            TEST_DATA_ROOT+'sizes_test.txt')
         
 # get data loader
 print('getting data loader...')
@@ -64,7 +65,7 @@ test_dataloader = data.DataLoader(
 		num_workers=args.workers, pin_memory=True)
 
 # define model
-num_classes=2
+num_classes=1
 model = UNet(num_classes, in_channels=3, depth=5, merge_mode='concat')
 model = torch.nn.DataParallel(model).cuda()
 

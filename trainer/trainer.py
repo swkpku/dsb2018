@@ -161,7 +161,7 @@ class Trainer():
     def _save_checkpoint(self, state, is_best):
         epoch = state['epoch']
         filename = 'checkpoints/' + self.config['arch'] + '_' + self.config['ckpt_title'] + '_epoch_' + str(epoch) + '.pth.tar'
-        #torch.save(state, filename)
+        torch.save(state, filename)
         if is_best:
             shutil.copyfile(filename, self.config['arch'] + '_epoch_' + str(epoch) + '_iter_' + str(iteration) + '_model_best.pth.tar')
 

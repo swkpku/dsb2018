@@ -13,3 +13,5 @@ def get_lr_schedule(idx):
         return [5e-5]
     elif idx == 7:
         return [1e-5]
+    elif idx == 8:
+        return [1e-4]*10+[1e-5]
