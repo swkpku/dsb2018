@@ -21,9 +21,9 @@ for idx, logfile in enumerate(logfiles):
         if line.startswith('Epoch:'):
             train_loss_term = line.split('\t')[3]
             train_loss = train_loss_term.split(' ')[2][1:-1]
-        elif line.startswith('* Loss'):
-            val_loss_term = line.split('\t')[0]
-            val_loss = val_loss_term.split(' ')[3][1:-1]
+        elif line.startswith('Test\t\Time'):
+            val_loss_term = line.split('\t')[2]
+            val_loss = val_loss_term.split(' ')[2][1:-1]
             points_matrix[idx*2].append(train_loss)
             points_matrix[idx*2+1].append(val_loss)
 

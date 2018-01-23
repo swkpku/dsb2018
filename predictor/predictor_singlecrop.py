@@ -2,7 +2,10 @@ import time
 import torch
 import csv
 import numpy as np
+import pandas as pd
 from PIL import Image
+from skimage.transform import resize
+from skimage.morphology import label
 
 def rle_encoding(x):
     dots = np.where(x.T.flatten() == 1)[0]
@@ -36,12 +39,13 @@ class Predictor():
         # switch to evaluate mode
         self.model.eval()
         
-        outfile = open(self.config['pred_filename'], "w")
+        new_test_ids = []
+        rles = []
         
         # prediction
         print("start prediction")
         end = time.time()
-        for i, (id, imgs) in enumerate(self.test_dataloader):
+        for i, (id, imgs, size) in enumerate(self.test_dataloader):
             # measure data loading time
             data_time = time.time() - end
             
@@ -57,8 +61,13 @@ class Predictor():
             preds_test_upsampled = []
             for i in range(len(predicts)):
                 preds_test_upsampled.append(resize(np.squeeze(predicts[i]), 
-                                       (sizes_test[i][0], sizes_test[i][1]), 
+                                       (int(size[0][i]), int(size[1][i])), 
                                        mode='constant', preserve_range=True))
+            
+            for n, id_ in enumerate(id):
+                rle = list(prob_to_rles(preds_test_upsampled[n]))
+                rles.extend(rle)
+                new_test_ids.extend([id_] * len(rle))
             
             #img = np.transpose(imgs.numpy()[0], (1,2,0)).astype(np.uint8)
             #print(img.shape)
@@ -91,8 +100,10 @@ class Predictor():
                        i, len(self.test_dataloader), batch_time=batch_time,
                        data_time=data_time))
                 
-        outfile.close()
-        
+        sub = pd.DataFrame()
+        sub['ImageId'] = new_test_ids
+        sub['EncodedPixels'] = pd.Series(rles).apply(lambda x: ' '.join(str(y) for y in x))
+        sub.to_csv(self.config['pred_filename'], index=False)
     
 def get_predictor(test_dataloader, model, config):
     return Predictor(test_dataloader, model, config)

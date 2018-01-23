@@ -61,17 +61,17 @@ def main(args):
     config = {
         'train_batch_size': args.batch_size, 'val_batch_size': 10,
         'img_size': args.img_size,
-        'arch': args.model, 'pretrained': args.pretrained, 'ckpt_title': "lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size),
+        'arch': args.model, 'pretrained': args.pretrained, 'ckpt_title': "_depth6_lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size),
         'lr_schedule_idx': args.lr_schedule, 'lr_schedule': get_lr_schedule(args.lr_schedule), 'weight_decay': 1e-5,
         'start_epoch': 0, 'epochs': args.num_epochs,
-        'print_freq': args.print_freq, 'validate_freq': num_train-1, 'save_freq': num_train-1,
+        'print_freq': args.print_freq,
         'log_file': log_file,
         'best_val_prec1': 0
     }
 
     # create model
     num_classes=1
-    model = UNet(num_classes, in_channels=3, depth=5, merge_mode='concat')
+    model = UNet(num_classes, in_channels=3, depth=6, merge_mode='concat')
     
     # create optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
