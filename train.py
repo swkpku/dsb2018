@@ -29,16 +29,16 @@ TRAIN_DATA_ROOT = "/home/swk/dsb2018/stage1_train_data/"
 
 def main(args):
     # preparing dataset and dataloader
-    train_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_train_256_0.txt', 
-                            TRAIN_DATA_ROOT+'X_train_256_0.npy',
-                            TRAIN_DATA_ROOT+'Y_train_256_0.npy',
+    train_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_train_256_'+str(args.dataset_index)+'.txt', 
+                            TRAIN_DATA_ROOT+'X_train_256_'+str(args.dataset_index)+'.npy',
+                            TRAIN_DATA_ROOT+'Y_train_256_'+str(args.dataset_index)+'.npy',
                             transform=Compose([
                                 RandomRotate(10),                                        
                                 RandomHorizontallyFlip()]))
         
-    val_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_val_256_0.txt', 
-                            TRAIN_DATA_ROOT+'X_val_256_0.npy',
-                            TRAIN_DATA_ROOT+'Y_val_256_0.npy',
+    val_dataset = DSB2018Dataset(TRAIN_DATA_ROOT+'train_ids_val_256_'+str(args.dataset_index)+'.txt', 
+                            TRAIN_DATA_ROOT+'X_val_256_'+str(args.dataset_index)+'.npy',
+                            TRAIN_DATA_ROOT+'Y_val_256_'+str(args.dataset_index)+'.npy',
                             transform=Compose([
                                 RandomRotate(10),                                        
                                 RandomHorizontallyFlip()]))
@@ -55,13 +55,13 @@ def main(args):
     
     # create log file
     num_train = train_dataloader.__len__()
-    log_file = open(args.output_dir+str(args.model)+"_pretrained"+str(args.pretrained)+"_lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size)+".log" ,"w")
+    log_file = open(args.output_dir+str(args.model)+"_data"+str(args.dataset_index)+"_d6_u_c"+"_pre"+str(args.pretrained)+"_lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size)+".log" ,"w")
     
     # training configuration
     config = {
         'train_batch_size': args.batch_size, 'val_batch_size': 10,
         'img_size': args.img_size,
-        'arch': args.model, 'pretrained': args.pretrained, 'ckpt_title': "_depth6_lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size),
+        'arch': args.model, 'pretrained': args.pretrained, 'ckpt_title': "_data_"+str(args.dataset_index)+"_d6_u_c_lr"+str(args.lr_schedule)+"_bs"+str(args.batch_size)+"_size"+str(args.img_size),
         'lr_schedule_idx': args.lr_schedule, 'lr_schedule': get_lr_schedule(args.lr_schedule), 'weight_decay': 1e-5,
         'start_epoch': 0, 'epochs': args.num_epochs,
         'print_freq': args.print_freq,
@@ -71,7 +71,7 @@ def main(args):
 
     # create model
     num_classes=1
-    model = UNet(num_classes, in_channels=3, depth=6, merge_mode='concat')
+    model = UNet(num_classes, in_channels=3, depth=6, start_filts=64, up_mode='upsample', merge_mode='concat')
     
     # create optimizer
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
@@ -142,6 +142,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Inference')
     parser.add_argument('--output_dir', metavar='DIR', default='output/', help='path to output files')
+    parser.add_argument('-d', '--dataset-index', default=0, type=int, metavar='N',help='index of dataset (default: 0)')
     parser.add_argument('--model', '-m', metavar='MODEL', default='unet', help='model architecture (default: unet)')
     parser.add_argument('--optimizer', '-opt', metavar='OPTIMIZER', default='Adam',help='optimizer (default: Adam)')
     parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',help='number of data loading workers (default: 0)')

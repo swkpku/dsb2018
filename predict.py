@@ -39,9 +39,9 @@ args = parser.parse_args()
 
 config = {
     'test_batch_size': 20,
-    'checkpoint': 'checkpoints/unet_lr5_bs16_size256_epoch_89.pth.tar',
+    'checkpoint': 'checkpoints/unet_d6_u_c_lr6_bs16_size256_epoch_48.pth.tar',
     'print_freq': 10,
-    'pred_filename': "predicts/unet_lr5_bs16_size256_epoch_89.csv",
+    'pred_filename': "predicts/unet_d6_u_c_lr6_bs16_size256_epoch_48.csv",
 	'arch': args.model
 }
 
@@ -66,7 +66,7 @@ test_dataloader = data.DataLoader(
 
 # define model
 num_classes=1
-model = UNet(num_classes, in_channels=3, depth=5, merge_mode='concat')
+model = UNet(num_classes, in_channels=3, depth=6, start_filts=64, up_mode='upsample', merge_mode='concat')
 model = torch.nn.DataParallel(model).cuda()
 
 # load checkpoint

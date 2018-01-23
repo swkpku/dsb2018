@@ -151,7 +151,7 @@ class Trainer():
         for k, v in score.items():
             print(k, v, file=self.config['log_file'], flush=True)
         self.metrics.reset()
-        print('Test:\t'
+        print('* Test:\t'
               'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
               'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
                batch_time=batch_time, loss=losses), file=self.config['log_file'], flush=True)
@@ -161,7 +161,7 @@ class Trainer():
     def _save_checkpoint(self, state, is_best):
         epoch = state['epoch']
         filename = 'checkpoints/' + self.config['arch'] + '_' + self.config['ckpt_title'] + '_epoch_' + str(epoch) + '.pth.tar'
-        torch.save(state, filename)
+        #torch.save(state, filename)
         if is_best:
             shutil.copyfile(filename, self.config['arch'] + '_epoch_' + str(epoch) + '_iter_' + str(iteration) + '_model_best.pth.tar')
 

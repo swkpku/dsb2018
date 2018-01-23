@@ -6,6 +6,7 @@ import pandas as pd
 from PIL import Image
 from skimage.transform import resize
 from skimage.morphology import label
+import torch.nn.functional as F
 
 def rle_encoding(x):
     dots = np.where(x.T.flatten() == 1)[0]
@@ -45,7 +46,7 @@ class Predictor():
         # prediction
         print("start prediction")
         end = time.time()
-        for i, (id, imgs, size) in enumerate(self.test_dataloader):
+        for idx, (id, imgs, size) in enumerate(self.test_dataloader):
             # measure data loading time
             data_time = time.time() - end
             
@@ -53,6 +54,7 @@ class Predictor():
 
             # compute output
             output = self.model(input_var)
+            output = F.sigmoid(output)
             
             predicts = output.data.cpu().numpy()
             predicts_t = (predicts > 0.5).astype(np.uint8)
@@ -76,8 +78,9 @@ class Predictor():
             #img = Image.fromarray(img, mode='RGB')
             #img.show()
             
-            #mask = Image.fromarray(output.data.cpu().numpy().astype(np.uint8)[0][0], mode='L')
-            #mask.show()
+            #for i in range(10):
+            #    mask = Image.fromarray(output.data.cpu().numpy().astype(np.uint8)[i][0], mode='L')
+            #    mask.show()
             
             #exit()
             
@@ -93,11 +96,11 @@ class Predictor():
             #    update="append"
             #)
 
-            if i % self.config['print_freq'] == 0:
+            if idx % self.config['print_freq'] == 0:
                 print('Iter: [{0}/{1}]\t'
                       'Time {batch_time:.3f}\t'
                       'Data {data_time:.3f}\t'.format(
-                       i, len(self.test_dataloader), batch_time=batch_time,
+                       idx, len(self.test_dataloader), batch_time=batch_time,
                        data_time=data_time))
                 
         sub = pd.DataFrame()
